@@ -1,0 +1,70 @@
+[project]
+name = "t-search-harness"
+version = "0.1.0"
+description = "Round-based agentic-search retriever harness for the T-Search model"
+authors = [{ name = "T-Search maintainers", email = "anatolii.s.potapov@gmail.com" }]
+license = "Apache-2.0"
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+dependencies = [
+    "openai>=1.0,<2",
+    "pyyaml>=6.0,<7",
+    "pydantic>=2.0,<3",
+    "pydantic-settings>=2.0,<3",
+]
+
+[project.urls]
+Repository = "https://github.com/turbo-llm/t-search-harness"
+
+[tool.poetry]
+packages = [{ include = "retriever_agent", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.15"
+mypy = "^2.2"
+pytest = "^9.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 119
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "D"]
+# D100/D104/D107: module, package, and __init__ docstrings are intentionally omitted.
+ignore = ["D100", "D104", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+# prompts.py holds the verbatim model prompts as string literals; line length does not apply.
+"src/retriever_agent/prompts.py" = ["E501"]
+
+[tool.mypy]
+plugins = ["pydantic.mypy"]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# test stubs stay unannotated; src is checked in strict mode
+module = [
+    "test_agent",
+    "test_config",
+    "test_prompts",
+    "test_round_loop",
+    "test_schemas",
+    "test_tool_gates",
+]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,126 @@
+# Tool schemas. __KEY__ tokens are substituted from AgentConfig at load time,
+# keeping those quoted thresholds in sync with the gates that enforce them.
+search_corpus:
+  type: function
+  function:
+    name: search_corpus
+    description: 'Semantic search over the corpus. Returns up to top_k items as {chunk_id,
+      snippet, score}. Parallel calls allowed — issue multiple search_corpus tool
+      calls in one assistant turn to cover independent angles. Dedup: within the current
+      round, chunks already shown this round are filtered. Chunks in your saved set
+      are filtered (already in context at top). Chunks seen in PREVIOUS rounds but
+      not saved CAN resurface — re-consider them under the new angle.'
+    parameters:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query string.
+        top_k:
+          type: integer
+          description: Number of results to return.
+          default: 5
+      required:
+      - query
+save_and_advance:
+  type: function
+  function:
+    name: save_and_advance
+    description: 'End the current round and start a new one with fresh context. Only
+      saved chunks survive the transition. Requires ≥__MIN_SEARCHES_BEFORE_SAVE__ searches in the current round
+      and ≥1 chunk saved. DISABLED in the last round. chunk_ids: saved come from this
+      round''s search results or the currently-saved set (re-passing updates the reason);
+      drop from the current saved set; no overlap between saved_chunks and drop_from_saved.
+      You MUST declare progress via covered_concepts and unresolved_concepts — at
+      least one of the two must be non-empty, and they must not overlap.'
+    parameters:
+      type: object
+      properties:
+        saved_chunks:
+          type: array
+          items:
+            type: object
+            properties:
+              chunk_id:
+                type: string
+              reason:
+                type: string
+                description: ≥__MIN_REASON_LEN__ chars. Specific fact or entity this chunk contributes.
+            required:
+            - chunk_id
+            - reason
+          description: Chunks to append to / update in the saved set.
+        drop_from_saved:
+          type: array
+          items:
+            type: string
+          description: Optional. chunk_ids to remove from the saved set. Use [] if
+            dropping nothing.
+        covered_concepts:
+          type: array
+          items:
+            type: string
+          description: Query atoms now supported by saved chunks. Short labels (entities,
+            dates, attributes). Can be [] if no solid evidence yet, but then unresolved_concepts
+            must be non-empty.
+        unresolved_concepts:
+          type: array
+          items:
+            type: string
+          description: Query atoms still without evidence. Short labels. Can be []
+            only if all concepts are covered (then covered_concepts must list them).
+        round_summary:
+          type: string
+          description: ≥__MIN_ROUND_SUMMARY_LEN__ chars. What you searched this round and what you found.
+        next_round_goal:
+          type: string
+          description: ≥__MIN_NEXT_GOAL_LEN__ chars. Concrete plan targeting unresolved.
+      required:
+      - saved_chunks
+      - covered_concepts
+      - unresolved_concepts
+      - round_summary
+      - next_round_goal
+finalize_ranking:
+  type: function
+  function:
+    name: finalize_ranking
+    description: Submit final ranked list of most relevant documents for the user
+      query and end the session. Empty ranking rejected. chunk_ids must come from
+      your current context (saved + this round's seen). You MUST declare covered_concepts
+      and unresolved_concepts — harness will reject finalize if unresolved ≥ 50% of
+      (covered + unresolved), except in the last round (where save_and_advance is
+      disabled). Retry allowed on reject.
+    parameters:
+      type: object
+      properties:
+        ranking:
+          type: array
+          items:
+            type: object
+            properties:
+              chunk_id:
+                type: string
+              reason:
+                type: string
+                description: ≥__MIN_REASON_LEN__ chars. Specific fact or entity this chunk contributes.
+            required:
+            - chunk_id
+            - reason
+          description: Ordered most→least relevant.
+        covered_concepts:
+          type: array
+          items:
+            type: string
+          description: Query atoms supported by evidence in the final ranking. Short
+            labels.
+        unresolved_concepts:
+          type: array
+          items:
+            type: string
+          description: Query atoms still without evidence at finalize time. Short
+            labels.
+      required:
+      - ranking
+      - covered_concepts
+      - unresolved_concepts

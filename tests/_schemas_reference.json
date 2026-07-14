@@ -1,0 +1,145 @@
+{
+ "finalize_ranking": {
+  "function": {
+   "description": "Submit final ranked list of most relevant documents for the user query and end the session. Empty ranking rejected. chunk_ids must come from your current context (saved + this round's seen). You MUST declare covered_concepts and unresolved_concepts — harness will reject finalize if unresolved ≥ 50% of (covered + unresolved), except in the last round (where save_and_advance is disabled). Retry allowed on reject.",
+   "name": "finalize_ranking",
+   "parameters": {
+    "properties": {
+     "covered_concepts": {
+      "description": "Query atoms supported by evidence in the final ranking. Short labels.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "ranking": {
+      "description": "Ordered most→least relevant.",
+      "items": {
+       "properties": {
+        "chunk_id": {
+         "type": "string"
+        },
+        "reason": {
+         "description": "≥20 chars. Specific fact or entity this chunk contributes.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "chunk_id",
+        "reason"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "unresolved_concepts": {
+      "description": "Query atoms still without evidence at finalize time. Short labels.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "ranking",
+     "covered_concepts",
+     "unresolved_concepts"
+    ],
+    "type": "object"
+   }
+  },
+  "type": "function"
+ },
+ "save_and_advance": {
+  "function": {
+   "description": "End the current round and start a new one with fresh context. Only saved chunks survive the transition. Requires ≥5 searches in the current round and ≥1 chunk saved. DISABLED in the last round. chunk_ids: saved come from this round's search results or the currently-saved set (re-passing updates the reason); drop from the current saved set; no overlap between saved_chunks and drop_from_saved. You MUST declare progress via covered_concepts and unresolved_concepts — at least one of the two must be non-empty, and they must not overlap.",
+   "name": "save_and_advance",
+   "parameters": {
+    "properties": {
+     "covered_concepts": {
+      "description": "Query atoms now supported by saved chunks. Short labels (entities, dates, attributes). Can be [] if no solid evidence yet, but then unresolved_concepts must be non-empty.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "drop_from_saved": {
+      "description": "Optional. chunk_ids to remove from the saved set. Use [] if dropping nothing.",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     },
+     "next_round_goal": {
+      "description": "≥30 chars. Concrete plan targeting unresolved.",
+      "type": "string"
+     },
+     "round_summary": {
+      "description": "≥50 chars. What you searched this round and what you found.",
+      "type": "string"
+     },
+     "saved_chunks": {
+      "description": "Chunks to append to / update in the saved set.",
+      "items": {
+       "properties": {
+        "chunk_id": {
+         "type": "string"
+        },
+        "reason": {
+         "description": "≥20 chars. Specific fact or entity this chunk contributes.",
+         "type": "string"
+        }
+       },
+       "required": [
+        "chunk_id",
+        "reason"
+       ],
+       "type": "object"
+      },
+      "type": "array"
+     },
+     "unresolved_concepts": {
+      "description": "Query atoms still without evidence. Short labels. Can be [] only if all concepts are covered (then covered_concepts must list them).",
+      "items": {
+       "type": "string"
+      },
+      "type": "array"
+     }
+    },
+    "required": [
+     "saved_chunks",
+     "covered_concepts",
+     "unresolved_concepts",
+     "round_summary",
+     "next_round_goal"
+    ],
+    "type": "object"
+   }
+  },
+  "type": "function"
+ },
+ "search_corpus": {
+  "function": {
+   "description": "Semantic search over the corpus. Returns up to top_k items as {chunk_id, snippet, score}. Parallel calls allowed — issue multiple search_corpus tool calls in one assistant turn to cover independent angles. Dedup: within the current round, chunks already shown this round are filtered. Chunks in your saved set are filtered (already in context at top). Chunks seen in PREVIOUS rounds but not saved CAN resurface — re-consider them under the new angle.",
+   "name": "search_corpus",
+   "parameters": {
+    "properties": {
+     "query": {
+      "description": "Search query string.",
+      "type": "string"
+     },
+     "top_k": {
+      "default": 5,
+      "description": "Number of results to return.",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "query"
+    ],
+    "type": "object"
+   }
+  },
+  "type": "function"
+ }
+}
